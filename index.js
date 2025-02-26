@@ -1,67 +1,136 @@
-const taskInput = document.getElementById('taskInput');
-const addTaskButton = document.getElementById('addTaskButton');
-const taskList = document.getElementById('taskList');
-const archList = document.getElementById('archivedList');
-const showArchButton = document.getElementById('showArchivedButton');
+const taskInput = document.getElementById('taskInput');   
+const addTaskButton = document.getElementById('addTaskButton'); 
+const taskList = document.getElementById('taskList');     
+const archList = document.getElementById('archivedList'); 
 
-addTaskButton.addEventListener('click', addTask);
+const activeTab = document.getElementById('activeTab');
+const archivedTab = document.getElementById('archivedTab');
 
-function addTask(){
-    const taskText = taskInput.value.trim();
-    if (taskText === '') return;
+const archIcon = document.createElement('img');
+archIcon.src = 'assets/archive.png'; 
+archIcon.alt = 'Archive';
 
-    const li = document.createElement('li');
+const delIcon = document.createElement('img');
+delIcon.src = 'assets/trash-can.png'; 
+delIcon.alt = 'Delete';
 
-    const archiveButton = document.createElement('button');
-    archiveButton.textContent = 'Archive';
+const restIcon = document.createElement('img');
+restIcon.src = 'assets/restore.png'; 
+restIcon.alt = 'Restore';
 
-    const unarchiveButton = document.createElement('button');
-    unarchiveButton.textContent = 'Restore';
+let draggedItem = null;
 
-    const checkComplete = document.createElement('input');
-    checkComplete.type = 'checkbox';
-    
-    const span = document.createElement('span');
-    span.textContent = taskText;
+addTaskButton.addEventListener('click', addTask);  
+activeTab.addEventListener('click', showActiveTasks);
+archivedTab.addEventListener('click', showArchivedTasks); 
 
-    const deleteButton = document.createElement('button');
-    deleteButton.textContent = 'Delete';
+function addTask() {
+  const taskText = taskInput.value.trim();
+  if (taskText === '') return;
 
-    deleteButton.addEventListener('click', function(){
-        li.remove()
-    })
+  const li = document.createElement('li');
+  li.setAttribute('draggable', 'true');
 
-    checkComplete.addEventListener('change', function(){
-        span.classList.toggle('completed');
-        if (checkComplete.checked) {
-            li.appendChild(archiveButton);
-        } else {
-            if (li.contains(archiveButton)) {
-                li.removeChild(archiveButton);
-            }
-        }
-    })
+  const archiveButton = document.createElement('button');
+  archiveButton.appendChild(archIcon);
 
-    archiveButton.addEventListener('click', function(){
-        li.removeChild(archiveButton);
-        li.appendChild(unarchiveButton);
-        archList.appendChild(li);
-    })
+  const unarchiveButton = document.createElement('button');
+  unarchiveButton.appendChild(restIcon);
 
-    unarchiveButton.addEventListener('click', function(){
-        li.removeChild(unarchiveButton);
+  const checkComplete = document.createElement('input');
+  checkComplete.type = 'checkbox';
+
+  const span = document.createElement('span');
+  span.textContent = taskText;
+
+  const deleteButton = document.createElement('button');
+  deleteButton.appendChild(delIcon);
+
+  addDragAndDropListeners(li);
+
+  deleteButton.addEventListener('click', function() {
+    li.remove();
+  });
+
+  checkComplete.addEventListener('change', function() {
+    span.classList.toggle('completed');
+    if (checkComplete.checked) {
+      if (!li.contains(archiveButton)) {
         li.appendChild(archiveButton);
-        taskList.appendChild(li);
-    })
+      }
+    } else {
+      if (li.contains(archiveButton)) {
+        li.removeChild(archiveButton);
+      }
+    }
+  });
 
-    li.appendChild(checkComplete);
-    li.appendChild(span);
-    li.appendChild(deleteButton);
-    
+  archiveButton.addEventListener('click', function() {
+    li.removeChild(archiveButton);
+    li.appendChild(unarchiveButton);
+    archList.appendChild(li);
+  });
+
+  unarchiveButton.addEventListener('click', function() {
+    li.removeChild(unarchiveButton);
+    li.appendChild(archiveButton);
     taskList.appendChild(li);
+  });
 
-    taskInput.value = '';
-    
+  li.appendChild(checkComplete);
+  li.appendChild(span);
+  li.appendChild(deleteButton);
+
+  taskList.appendChild(li);
+
+  taskInput.value = '';
 }
 
 
+function showActiveTasks() {
+  taskList.style.display = 'flex';
+  archList.style.display = 'none';
+  activeTab.classList.add('active-tab');
+  archivedTab.classList.remove('active-tab');
+}
+
+
+function showArchivedTasks() {
+  taskList.style.display = 'none';
+  archList.style.display = 'flex';
+  archivedTab.classList.add('active-tab');
+  activeTab.classList.remove('active-tab');
+}
+
+
+function addDragAndDropListeners(item) {
+  item.addEventListener('dragstart', function() {
+    draggedItem = item;
+    requestAnimationFrame(() => item.classList.add('dragging'));
+  });
+
+  item.addEventListener('dragend', function() {
+    draggedItem = null;
+    item.classList.remove('dragging');
+  });
+
+
+  item.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    
+    const hoveredItem = this;
+    if (draggedItem === hoveredItem) return;
+
+    const hoveredItemRect = hoveredItem.getBoundingClientRect();
+    const midpoint = hoveredItemRect.y + hoveredItemRect.height / 2;
+    if (e.clientY < midpoint) {
+      hoveredItem.parentNode.insertBefore(draggedItem, hoveredItem);
+    } else {
+      hoveredItem.parentNode.insertBefore(draggedItem, hoveredItem.nextSibling);
+    }
+  });
+
+  item.addEventListener('drop', function(e) {
+    e.preventDefault();
+  });
+}
