@@ -1,140 +1,89 @@
-import { _addTask,_createTask, _deleteTask } from "./registry.js";
+import {
+  _createTask,
+  _addTask,
+  _getTasks
+} from "./registry.js";
+import { createTaskElem } from "./view.js";
 
-const taskInput = document.getElementById('taskInput');   
-const addTaskButton = document.getElementById('addTaskButton'); 
-const taskList = document.getElementById('taskList');     
-const archList = document.getElementById('archivedList'); 
+const taskList = document.getElementById('taskList');
+const taskInput = document.getElementById('taskInput');
+const addTaskButton = document.getElementById('addTaskButton');
+const showArchivedToggle = document.getElementById('showArchivedToggle');
 
-const activeTab = document.getElementById('activeTab');
-const archivedTab = document.getElementById('archivedTab');
-
-const archIcon = document.createElement('img');
-archIcon.src = 'assets/archive.png'; 
-archIcon.alt = 'Archive';
-
-const delIcon = document.createElement('img');
-delIcon.src = 'assets/trash-can.png'; 
-delIcon.alt = 'Delete';
-
-const restIcon = document.createElement('img');
-restIcon.src = 'assets/restore.png'; 
-restIcon.alt = 'Restore';
-
-let draggedItem = null;
-
-addTaskButton.addEventListener('click', addTask);  
-activeTab.addEventListener('click', showActiveTasks);
-archivedTab.addEventListener('click', showArchivedTasks); 
-
-function addTask() {
-  
-  const taskText = taskInput.value.trim();
-  if (taskText === '') return;
-  _addTask(_createTask(taskText,false))
-  const li = document.createElement('li');
-  li.setAttribute('draggable', 'true');
-
-  const archiveButton = document.createElement('button');
-  archiveButton.appendChild(archIcon);
-
-  const unarchiveButton = document.createElement('button');
-  unarchiveButton.appendChild(restIcon);
-
-  const checkComplete = document.createElement('input');
-  checkComplete.type = 'checkbox';
-
-  const span = document.createElement('span');
-  span.textContent = taskText;
-
-  const deleteButton = document.createElement('button');
-  deleteButton.appendChild(delIcon);
-
-  addDragAndDropListeners(li);
-
-  deleteButton.addEventListener('click', function() {
-    li.remove();
-    _deleteTask(taskText)
-  });
-
-  checkComplete.addEventListener('change', function() {
-    span.classList.toggle('completed');
-    if (checkComplete.checked) {
-      if (!li.contains(archiveButton)) {
-        li.appendChild(archiveButton);
-      }
-    } else {
-      if (li.contains(archiveButton)) {
-        li.removeChild(archiveButton);
-      }
-    }
-  });
-
-  archiveButton.addEventListener('click', function() {
-    li.removeChild(archiveButton);
-    li.appendChild(unarchiveButton);
-    archList.appendChild(li);
-  });
-
-  unarchiveButton.addEventListener('click', function() {
-    li.removeChild(unarchiveButton);
-    li.appendChild(archiveButton);
-    taskList.appendChild(li);
-  });
-
-  li.appendChild(checkComplete);
-  li.appendChild(span);
-  li.appendChild(deleteButton);
-
-  taskList.appendChild(li);
-
+addTaskButton.addEventListener('click', () => {
+  if (!taskInput.value.trim()) return;
+  const newTask = _createTask(taskInput.value);
+  _addTask(newTask);
   taskInput.value = '';
-}
+  renderTasks();
+});
 
+showArchivedToggle.addEventListener('change', renderTasks);
 
-function showActiveTasks() {
-  taskList.style.display = 'flex';
-  archList.style.display = 'none';
-  activeTab.classList.add('active-tab');
-  archivedTab.classList.remove('active-tab');
-}
+function addDragAndDropListeners() {
+  taskList.addEventListener('dragover', handleDragOver);
+  taskList.addEventListener('drop', handleDrop);
 
-
-function showArchivedTasks() {
-  taskList.style.display = 'none';
-  archList.style.display = 'flex';
-  archivedTab.classList.add('active-tab');
-  activeTab.classList.remove('active-tab');
-}
-
-
-function addDragAndDropListeners(item) {
-  item.addEventListener('dragstart', function() {
-    draggedItem = item;
-    requestAnimationFrame(() => item.classList.add('dragging'));
+  const draggables = document.querySelectorAll('#taskList li');
+  draggables.forEach(draggable => {
+    draggable.addEventListener('dragstart', handleDragStart);
+    draggable.addEventListener('dragend', handleDragEnd);
   });
+}
 
-  item.addEventListener('dragend', function() {
-    draggedItem = null;
-    item.classList.remove('dragging');
-  });
+function handleDragStart(e) {
+  e.target.classList.add('dragging');
+}
 
+function handleDragEnd(e) {
+  e.target.classList.remove('dragging');
+}
 
-  item.addEventListener('dragover', function(e) {
-    e.preventDefault();
-    
-    const hoveredItem = this;
-    if (draggedItem === hoveredItem) return;
+function handleDragOver(e) {
+  e.preventDefault();
+  const dragging = document.querySelector('.dragging');
+  if (!dragging) return;
 
-    const hoveredItemRect = hoveredItem.getBoundingClientRect();
-    const midpoint = hoveredItemRect.y + hoveredItemRect.height / 2;
-    if (e.clientY < midpoint) {
-      hoveredItem.parentNode.insertBefore(draggedItem, hoveredItem);
+  const afterElement = getDragAfterElement(taskList, e.clientY);
+  if (afterElement == null) {
+    taskList.appendChild(dragging);
+  } else {
+    taskList.insertBefore(dragging, afterElement);
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const dragging = document.querySelector('.dragging');
+  if (dragging) {
+    dragging.classList.remove('dragging');
+  }
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('li:not(.dragging)')];
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - (box.top + box.height / 2);
+    if (offset < 0 && offset > closest.offset) {
+      return { offset, element: child };
     } else {
-      hoveredItem.parentNode.insertBefore(draggedItem, hoveredItem.nextSibling);
+      return closest;
     }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function renderTasks() {
+  taskList.innerHTML = '';
+  const tasks = _getTasks();
+  const showArchived = showArchivedToggle.checked;
+
+  tasks.forEach(task => {
+    if (task.archived && !showArchived) return;
+    taskList.appendChild(createTaskElem(task));
   });
 
-  item.addEventListener('drop', function(e) {
-    e.preventDefault();
-  });
+  addDragAndDropListeners();
 }
+
+renderTasks();

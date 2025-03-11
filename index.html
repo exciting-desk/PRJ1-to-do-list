@@ -4,11 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="style.css" rel="stylesheet" />
-  <script type="module" src="./registry.js"></script>
-
-
   <title>To-Do WebApp</title>
-
 </head>
 <body>
   <header class="header-bar">
@@ -17,11 +13,6 @@
   </header>
 
   <section class="task-container">
-    <div class="tabs">
-      <div id="activeTab" class="tab active-tab">Active Tasks</div>
-      <div id="archivedTab" class="tab">Archived Tasks</div>
-    </div>
-
     <div class="input-row">
       <input 
         type="text" 
@@ -32,11 +23,16 @@
       <button id="addTaskButton" class="btn-add">Add Task</button>
     </div>
 
+    <label style="padding: 1rem;">
+      <input type="checkbox" id="showArchivedToggle" />
+      Show Archived
+    </label>
+
     <ul id="taskList" class="task-list"></ul>
-
-    <ul id="archivedList" class="task-list" style="display: none;"></ul>
   </section>
+  
+  <script type="module" src="registry.js"></script>
+  <script type="module" src="view.js"></script>
   <script type="module" src="index.js"></script>
-
 </body>
 </html>
